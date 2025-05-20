@@ -173,14 +173,15 @@ class LL1Parser {
     PredictionSymbols(const std::string&              antecedent,
                       const std::vector<std::string>& consequent);
 
-
-                      void TeachFirst(const std::vector<std::string>& symbols) ; 
-                      void TeachFirstUtil(const std::vector<std::string>& symbols,
-                        std::unordered_set<std::string>& first_set,
-                        int depth)  ;      
-    void TeachFollow(const std::string& non_terminal);
-    void TeachPredictionSymbols(const std::string& antecedent,
+    std::string TeachFirst(const std::vector<std::string>& symbols);
+    void TeachFirstUtil(const std::vector<std::string>&  symbols,
+                        std::unordered_set<std::string>& first_set, int depth,
+                        std::unordered_set<std::string>& processing, std::ostringstream& output);
+    std::string TeachFollow(const std::string& non_terminal);
+    std::string TeachPredictionSymbols(const std::string& antecedent,
                                 const production&  consequent);
+
+    std::string TeachLL1Table();
 
     /// @brief The LL(1) parsing table, mapping non-terminals and terminals to
     /// productions.

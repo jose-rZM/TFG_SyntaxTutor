@@ -21,12 +21,18 @@ Grammar::Grammar(
         }
     }
     axiom_ = "S";
-    g_     = std::move(grammar);
-    if (g_.find(axiom_) == g_.end()) {
-        // S -> firstNonTerminal $
-        g_[axiom_] = {{*st_.non_terminals_.begin(), st_.EOL_}};
-        st_.PutSymbol(axiom_, false);
-    }
+    g_ = grammar;
+    g_[axiom_] = {{"A", st_.EOL_}};
+    st_.PutSymbol(axiom_, false);
+}
+
+void Grammar::TransformToAugmentedGrammar()
+{
+    std::string new_axiom = axiom_ + "'";
+    g_[new_axiom] = {{axiom_}};
+    st_.PutSymbol(new_axiom, false);
+
+    axiom_ = new_axiom;
 }
 
 void Grammar::SetAxiom(const std::string& axiom) {
@@ -55,49 +61,70 @@ Grammar::FilterRulesByConsequent(const std::string& arg) {
 
 void Grammar::Debug() {
     std::cout << "Grammar:\n";
-
-    std::cout << axiom_ << " -> ";
-    const auto& axiom_productions = g_.at(axiom_);
-    for (size_t i = 0; i < axiom_productions.size(); ++i) {
-        for (const std::string& symbol : axiom_productions[i]) {
-            std::cout << symbol << " ";
-        }
-        if (i < axiom_productions.size() - 1) {
-            std::cout << "| ";
-        }
-    }
-    std::cout << "\n";
-
-    std::vector<std::string> non_terminals;
     for (const auto& entry : g_) {
-        if (entry.first != axiom_) {
-            non_terminals.push_back(entry.first);
-        }
-    }
-
-    std::sort(non_terminals.begin(), non_terminals.end());
-
-    for (const std::string& nt : non_terminals) {
-        std::cout << nt << " -> ";
-        const auto& productions = g_.at(nt);
-        for (size_t i = 0; i < productions.size(); ++i) {
-            for (const std::string& symbol : productions[i]) {
+        std::cout << entry.first << " -> ";
+        for (const std::vector<std::string>& prod : entry.second) {
+            for (const std::string& symbol : prod) {
                 std::cout << symbol << " ";
             }
-            if (i < productions.size() - 1) {
-                std::cout << "| ";
-            }
+            std::cout << "| ";
         }
         std::cout << "\n";
     }
 }
-
 bool Grammar::HasLeftRecursion(const std::string&              antecedent,
                                const std::vector<std::string>& consequent) {
     return consequent.at(0) == antecedent;
 }
 
+std::string Grammar::GenerateNewNonTerminal(const std::string& base) {
+    unsigned    i = 1;
+    std::string new_nt;
+
+    do {
+        new_nt = base + "'" + std::to_string(i);
+        i++;
+    } while (st_.non_terminals_.find(new_nt) != st_.non_terminals_.end());
+    st_.non_terminals_.insert(new_nt);
+    return new_nt;
+}
+
 void Grammar::AddProduction(const std::string&              antecedent,
                             const std::vector<std::string>& consequent) {
     g_[antecedent].push_back(std::move(consequent));
+}
+
+std::vector<std::string> Grammar::Split(const std::string& s) {
+    if (s == st_.EPSILON_) {
+        return {st_.EPSILON_};
+    }
+    std::vector<std::string> splitted;
+    std::string str;
+    unsigned start{0};
+    unsigned end{1};
+
+    while (end <= s.size()) {
+        str = s.substr(start, end - start);
+
+        if (st_.In(str)) {
+            unsigned lookahead = end + 1;
+            while (lookahead <= s.size()) {
+                std::string extended = s.substr(start, lookahead - start);
+                if (st_.In(extended)) {
+                    end = lookahead;
+                }
+                ++lookahead;
+            }
+            splitted.push_back(s.substr(start, end - start));
+            start = end;
+            end = start + 1;
+        } else {
+            ++end;
+        }
+    }
+
+    if (start < end - 1) {
+        return {};
+    }
+    return splitted;
 }
